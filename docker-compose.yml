@@ -1,0 +1,21 @@
+# Local development stack: Postgres + a local chain. The API and web app run on the host with pnpm.
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: tradechainx
+      POSTGRES_PASSWORD: tradechainx
+      POSTGRES_DB: tradechainx
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  anvil:
+    image: ghcr.io/foundry-rs/foundry:stable
+    entrypoint: ["anvil", "--host", "0.0.0.0", "--chain-id", "31337", "--block-time", "2"]
+    ports:
+      - "8545:8545"
+
+volumes:
+  pgdata:

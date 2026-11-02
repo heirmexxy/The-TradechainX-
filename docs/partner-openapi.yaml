@@ -1,0 +1,382 @@
+openapi: 3.1.0
+info:
+  title: TradeChainX Partner API
+  version: 1.0.0
+  description: |
+    Server-to-server API for verified partner businesses. See docs/PARTNER_API.md for the full guide
+    (onboarding, review gate, prepared calls, webhook verification, widgets).
+    Amounts are integer strings in base units (USDC has 6 decimals). Big integers inside prepared-call
+    `args` are encoded as {"$bigint": "123"}.
+servers:
+  - url: https://api.tradechainx.com/partner/v1
+  - url: https://api.staging.tradechainx.com/partner/v1
+security:
+  - apiKey: []
+
+components:
+  securitySchemes:
+    apiKey:
+      type: http
+      scheme: bearer
+      bearerFormat: "tcx_live_<prefix>_<secret>"
+  parameters:
+    AssetType:
+      name: type
+      in: path
+      required: true
+      schema: { $ref: "#/components/schemas/AssetType" }
+  schemas:
+    AssetType:
+      type: string
+      enum: [warehouse-receipt, lpo, carbon]
+    UintString:
+      type: string
+      pattern: "^[0-9]+$"
+    Address:
+      type: string
+      pattern: "^0x[0-9a-f]{40}$"
+    Error:
+      type: object
+      required: [error, message]
+      properties:
+        error: { type: string, examples: [insufficient_scope] }
+        message: { type: string }
+        issues:
+          type: array
+          items: { type: object, properties: { path: { type: string }, message: { type: string } } }
+    PreparedCall:
+      type: object
+      required: [contract, address, functionName, args, summary]
+      properties:
+        contract: { type: string, examples: [marketplace] }
+        address: { $ref: "#/components/schemas/Address" }
+        functionName: { type: string, examples: [buy] }
+        args: { type: array, items: {} }
+        summary: { type: string, examples: [Complete the purchase] }
+    CallsResponse:
+      type: object
+      required: [signer, calls]
+      properties:
+        signer: { $ref: "#/components/schemas/Address" }
+        totalUsdc: { $ref: "#/components/schemas/UintString" }
+        calls: { type: array, items: { $ref: "#/components/schemas/PreparedCall" } }
+    Asset:
+      type: object
+      properties:
+        assetType: { $ref: "#/components/schemas/AssetType" }
+        tokenId: { $ref: "#/components/schemas/UintString" }
+        title: { type: string }
+        status: { type: string }
+        owner: { type: [string, "null"] }
+        originator: { type: string }
+        terms: { type: object }
+        details: { type: object, description: Public fields only }
+        expiresAt: { type: [integer, "null"] }
+        totalSupply: { type: [string, "null"] }
+        retired: { type: [string, "null"] }
+        suspended: { type: boolean }
+    Listing:
+      type: object
+      properties:
+        listingId: { $ref: "#/components/schemas/UintString" }
+        seller: { $ref: "#/components/schemas/Address" }
+        assetType: { $ref: "#/components/schemas/AssetType" }
+        tokenId: { $ref: "#/components/schemas/UintString" }
+        remaining: { $ref: "#/components/schemas/UintString" }
+        pricePerUnit: { $ref: "#/components/schemas/UintString" }
+        feeBps: { type: integer }
+        active: { type: boolean }
+        asset: { $ref: "#/components/schemas/Asset" }
+    Offering:
+      type: object
+      properties:
+        proposalId: { $ref: "#/components/schemas/UintString" }
+        vault: { $ref: "#/components/schemas/Address" }
+        name: { type: string }
+        symbol: { type: string }
+        operator: { $ref: "#/components/schemas/Address" }
+        maxShares: { $ref: "#/components/schemas/UintString" }
+        pricePerShare: { $ref: "#/components/schemas/UintString" }
+        deadline: { type: integer, description: Unix seconds }
+        vaultState: { type: [integer, "null"], description: "0 fundraising, 1 active, 2 failed, 3 dissolved" }
+        sharesSold: { $ref: "#/components/schemas/UintString" }
+        totalYield: { $ref: "#/components/schemas/UintString" }
+        details: { type: object }
+    Draft:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        assetType: { $ref: "#/components/schemas/AssetType" }
+        fields: { type: object }
+        keyHash: { type: string }
+        documentIds: { type: array, items: { type: string, format: uuid } }
+        submissionId: { type: [string, "null"] }
+        txHash: { type: [string, "null"] }
+        createdAt: { type: string, format: date-time }
+    WebhookEvent:
+      type: object
+      required: [id, type, created, livemode, data]
+      properties:
+        id: { type: string, examples: [evt_137_0xabc_3] }
+        type:
+          type: string
+          enum:
+            - submission.received
+            - submission.needs_info
+            - submission.rejected
+            - asset.issued
+            - listing.created
+            - listing.sold
+            - listing.cancelled
+            - lpo.settled
+            - xown.offering_created
+            - xown.subscribed
+            - xown.offering_funded
+            - xown.offering_failed
+            - xown.yield_deposited
+            - carbon.retired
+            - ping
+        created: { type: string, format: date-time }
+        livemode: { type: boolean }
+        data: { type: object }
+  responses:
+    Error:
+      description: Error
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+
+paths:
+  /me:
+    get:
+      summary: Partner, key, usage and chain info
+      responses:
+        "200": { description: OK }
+        "401": { $ref: "#/components/responses/Error" }
+  /events:
+    get:
+      summary: Webhook event catalogue
+      responses: { "200": { description: OK } }
+
+  /offerings:
+    get:
+      summary: XOwn offerings
+      description: "Scope: read"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties: { offerings: { type: array, items: { $ref: "#/components/schemas/Offering" } } }
+  /offerings/{vault}:
+    get:
+      summary: One XOwn offering
+      parameters: [{ name: vault, in: path, required: true, schema: { $ref: "#/components/schemas/Address" } }]
+      responses:
+        "200": { description: OK }
+        "404": { $ref: "#/components/responses/Error" }
+  /assets:
+    get:
+      summary: Issued assets
+      parameters:
+        - { name: type, in: query, schema: { $ref: "#/components/schemas/AssetType" } }
+        - { name: owner, in: query, schema: { $ref: "#/components/schemas/Address" } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+        - { name: cursor, in: query, schema: { type: integer }, description: nextCursor from the previous page }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  assets: { type: array, items: { $ref: "#/components/schemas/Asset" } }
+                  nextCursor: { type: [integer, "null"] }
+  /assets/{type}/{id}:
+    get:
+      summary: One asset
+      parameters:
+        - $ref: "#/components/parameters/AssetType"
+        - { name: id, in: path, required: true, schema: { $ref: "#/components/schemas/UintString" } }
+      responses:
+        "200": { description: OK }
+        "404": { $ref: "#/components/responses/Error" }
+  /listings:
+    get:
+      summary: Active listings
+      parameters:
+        - { name: type, in: query, schema: { $ref: "#/components/schemas/AssetType" } }
+        - { name: seller, in: query, schema: { $ref: "#/components/schemas/Address" } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties: { listings: { type: array, items: { $ref: "#/components/schemas/Listing" } } }
+  /listings/{id}:
+    get:
+      summary: One listing
+      parameters: [{ name: id, in: path, required: true, schema: { $ref: "#/components/schemas/UintString" } }]
+      responses:
+        "200": { description: OK }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /documents:
+    post:
+      summary: Upload a supporting document
+      description: "Scope: issue. PDF, JPG or PNG up to 15 MB."
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+                kind: { type: string, examples: [lpo] }
+      responses:
+        "200": { description: "{ document: { id, sha256, filename, … } }" }
+        "400": { $ref: "#/components/responses/Error" }
+  /drafts/{type}:
+    post:
+      summary: Create a draft and get the call that submits it for review
+      description: "Scope: issue. Field lists per type are in PARTNER_API.md."
+      parameters: [{ $ref: "#/components/parameters/AssetType" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [fields, documentIds]
+              properties:
+                fields: { type: object }
+                documentIds: { type: array, minItems: 1, maxItems: 20, items: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/CallsResponse"
+                  - type: object
+                    properties:
+                      draft: { $ref: "#/components/schemas/Draft" }
+                      next: { type: string }
+        "403": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+  /drafts/{id}/tx:
+    post:
+      summary: Record the submission transaction hash
+      parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [txHash], properties: { txHash: { type: string, pattern: "^0x[0-9a-fA-F]{64}$" } } }
+      responses: { "200": { description: OK } }
+  /drafts:
+    get:
+      summary: Your drafts and their review status
+      responses: { "200": { description: OK } }
+
+  /trade/buy:
+    post:
+      summary: Prepared calls to buy from a listing
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [listingId]
+              properties:
+                listingId: { $ref: "#/components/schemas/UintString" }
+                amount: { $ref: "#/components/schemas/UintString" }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/CallsResponse" } } } }
+  /trade/list:
+    post:
+      summary: Prepared calls to list an asset you own
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [assetType, tokenId, pricePerUnit]
+              properties:
+                assetType: { $ref: "#/components/schemas/AssetType" }
+                tokenId: { $ref: "#/components/schemas/UintString" }
+                amount: { $ref: "#/components/schemas/UintString" }
+                pricePerUnit: { $ref: "#/components/schemas/UintString" }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/CallsResponse" } } } }
+  /trade/cancel:
+    post:
+      summary: Prepared call to cancel your listing
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [listingId], properties: { listingId: { $ref: "#/components/schemas/UintString" } } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/CallsResponse" } } } }
+  /trade/subscribe:
+    post:
+      summary: Prepared calls to buy XOwn shares
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [vault, shares]
+              properties:
+                vault: { $ref: "#/components/schemas/Address" }
+                shares: { $ref: "#/components/schemas/UintString" }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/CallsResponse" } } } }
+  /trade/settle-lpo:
+    post:
+      summary: Prepared calls to pay a purchase order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [tokenId], properties: { tokenId: { $ref: "#/components/schemas/UintString" } } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/CallsResponse" } } } }
+
+  /webhooks:
+    get:
+      summary: Your webhook endpoints
+      responses: { "200": { description: OK } }
+  /webhooks/{id}/deliveries:
+    get:
+      summary: Recent deliveries for one endpoint
+      parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+      responses: { "200": { description: OK } }
+
+webhooks:
+  event:
+    post:
+      summary: Event delivered to your endpoint
+      parameters:
+        - { name: TradeChainX-Signature, in: header, required: true, schema: { type: string }, description: "t=<unix>,v1=<hex HMAC-SHA256(secret, t + '.' + body)>" }
+        - { name: TradeChainX-Event, in: header, required: true, schema: { type: string } }
+        - { name: TradeChainX-Delivery, in: header, required: true, schema: { type: string } }
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/WebhookEvent" }
+      responses:
+        "200": { description: Acknowledge within 10 seconds }

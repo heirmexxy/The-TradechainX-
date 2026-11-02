@@ -1,0 +1,22 @@
+{
+  "name": "tradechainx",
+  "private": true,
+  "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "contracts:build": "cd contracts && forge build",
+    "contracts:test": "cd contracts && forge test",
+    "contracts:deploy:local": "cd contracts && ./deploy-local.sh",
+    "generate": "node packages/shared/scripts/generate.mjs",
+    "test:domain": "node --experimental-strip-types --test packages/shared/src/domain/*.test.ts",
+    "dev:api": "pnpm --filter @tradechainx/api dev",
+    "dev:web": "pnpm --filter @tradechainx/web dev",
+    "db:migrate": "pnpm --filter @tradechainx/api db:migrate",
+    "db:seed": "pnpm --filter @tradechainx/api db:seed",
+    "typecheck": "pnpm -r typecheck",
+    "build": "pnpm -r build",
+    "test:sdk": "node --experimental-strip-types --test packages/sdk/test/*.test.ts"
+  }
+}

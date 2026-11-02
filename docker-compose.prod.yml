@@ -1,0 +1,104 @@
+# Production stack for a single VPS (e.g. Hostinger KVM). See docs/PRODUCTION_RUNBOOK.md.
+#
+#   caddy     — HTTPS (automatic Let's Encrypt certificates), reverse proxy
+#   web       — Next.js site and app
+#   api       — Fastify API (runs database migrations on start) + health monitor
+#   indexer   — chain indexer + partner webhook dispatcher
+#   postgres  — database (data in the pgdata volume; backed up by deploy/backup.sh)
+#
+# Secrets live in deploy/env/*.env on the server (chmod 600), rendered from your secrets manager.
+# They are never committed. Start/upgrade with:  ./deploy/deploy.sh
+name: tradechainx
+
+x-api: &api
+  image: tradechainx-api:${RELEASE:-latest}
+  build:
+    context: .
+    dockerfile: apps/api/Dockerfile
+  env_file: deploy/env/api.env
+  restart: unless-stopped
+  depends_on:
+    postgres:
+      condition: service_healthy
+  logging:
+    driver: json-file
+    options: { max-size: "20m", max-file: "5" }
+
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    env_file: deploy/env/postgres.env
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    shm_size: 256mb
+    logging:
+      driver: json-file
+      options: { max-size: "20m", max-file: "5" }
+    # Not published to the internet. Reach it with: docker compose -f docker-compose.prod.yml exec postgres psql …
+
+  api:
+    <<: *api
+    environment:
+      RUN_INDEXER: "false"
+
+  indexer:
+    <<: *api
+    command: ["node", "--import", "tsx", "src/indexer/run.ts"]
+    environment:
+      RUN_HEALTH_MONITOR: "false"
+    healthcheck:
+      disable: true
+    depends_on:
+      api:
+        condition: service_healthy
+
+  web:
+    image: tradechainx-web:${RELEASE:-latest}
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+        NEXT_PUBLIC_CHAIN_ID: ${NEXT_PUBLIC_CHAIN_ID}
+        NEXT_PUBLIC_RPC_URL: ${NEXT_PUBLIC_RPC_URL}
+        NEXT_PUBLIC_WALLET_PROVIDER: ${NEXT_PUBLIC_WALLET_PROVIDER}
+        NEXT_PUBLIC_GAS_MODE: ${NEXT_PUBLIC_GAS_MODE:-}
+        NEXT_PUBLIC_GAS_MIN_BALANCE: ${NEXT_PUBLIC_GAS_MIN_BALANCE:-0.05}
+        NEXT_PUBLIC_PRIVY_APP_ID: ${NEXT_PUBLIC_PRIVY_APP_ID:-}
+        NEXT_PUBLIC_DYNAMIC_ENVIRONMENT_ID: ${NEXT_PUBLIC_DYNAMIC_ENVIRONMENT_ID:-}
+        NEXT_PUBLIC_SEQUENCE_PROJECT_ACCESS_KEY: ${NEXT_PUBLIC_SEQUENCE_PROJECT_ACCESS_KEY:-}
+        NEXT_PUBLIC_SEQUENCE_WAAS_CONFIG_KEY: ${NEXT_PUBLIC_SEQUENCE_WAAS_CONFIG_KEY:-}
+        NEXT_PUBLIC_SEQUENCE_NETWORK: ${NEXT_PUBLIC_SEQUENCE_NETWORK:-}
+    restart: unless-stopped
+    depends_on:
+      - api
+    logging:
+      driver: json-file
+      options: { max-size: "20m", max-file: "5" }
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    env_file: deploy/env/caddy.env
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web
+      - api
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:

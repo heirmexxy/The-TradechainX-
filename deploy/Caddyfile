@@ -1,0 +1,35 @@
+# HTTPS for the site and API. Caddy gets and renews Let's Encrypt certificates automatically once
+# DNS points at this server. Domains come from deploy/env/caddy.env (SITE_DOMAIN, API_DOMAIN, ACME_EMAIL).
+{
+	email {$ACME_EMAIL}
+}
+
+(common) {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		-Server
+	}
+	log {
+		output stdout
+		format json
+	}
+}
+
+{$SITE_DOMAIN}, www.{$SITE_DOMAIN} {
+	import common
+	@www host www.{$SITE_DOMAIN}
+	redir @www https://{$SITE_DOMAIN}{uri} permanent
+	reverse_proxy web:3000
+}
+
+{$API_DOMAIN} {
+	import common
+	# Development-only routes never exist in production (DEV_TOOLS is refused), but block them anyway.
+	@dev path /dev/*
+	respond @dev 404
+	request_body {
+		max_size 20MB
+	}
+	reverse_proxy api:4000
+}

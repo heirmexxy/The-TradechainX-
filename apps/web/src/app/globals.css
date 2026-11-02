@@ -1,0 +1,53 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    font-feature-settings: "tnum" 1, "ss02" 1;
+  }
+  body {
+    @apply bg-paper text-slate antialiased;
+  }
+  h1, h2, h3 {
+    @apply text-ink-900;
+  }
+  :focus-visible {
+    outline: 2px solid theme("colors.maize.DEFAULT");
+    outline-offset: 2px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer components {
+  /* The certificate: an asset as a verifiable trade document. The perforated edge carries the
+     document hash — the one decorative device on the site, and it encodes real information. */
+  .certificate {
+    @apply relative bg-white border border-ink-100;
+    border-radius: 2px;
+    box-shadow: 0 1px 0 theme("colors.ink.100"), 0 12px 32px -18px rgba(20, 28, 63, 0.35);
+  }
+  .perforation {
+    background-image: radial-gradient(circle at 6px 50%, theme("colors.paper") 3.5px, transparent 4px);
+    background-size: 12px 100%;
+    background-repeat: repeat-x;
+  }
+  .stamp {
+    @apply inline-flex items-center gap-1.5 border-2 border-leaf text-leaf font-semibold px-2.5 py-1;
+    border-radius: 3px;
+    transform: rotate(-4deg);
+  }
+  .field-label {
+    @apply block text-sm font-medium text-ink-900 mb-1.5;
+  }
+  .input {
+    @apply w-full rounded border border-line bg-white px-3 py-2.5 text-ink-900 placeholder:text-slate-300
+      focus:border-ink-500 focus:outline-none focus:ring-2 focus:ring-ink-100 disabled:bg-ink-50;
+  }
+}

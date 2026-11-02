@@ -1,0 +1,25 @@
+node_modules/
+.next/
+dist/
+.turbo/
+coverage/
+
+# Secrets — never commit or zip these. Use .env.example as the template.
+.env
+.env.*
+!.env.example
+deploy/env/*.env
+backups/
+
+# Contracts
+contracts/out/
+contracts/cache/
+contracts/broadcast/
+contracts/lib/
+contracts/deployments/31337.json
+
+# Local file storage for uploaded documents (dev only)
+apps/api/storage/
+
+*.log
+.DS_Store
