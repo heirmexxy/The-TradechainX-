@@ -14,6 +14,10 @@ export LISTING_REVIEWER=0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC    # anvil 2
 export WAREHOUSE_REGISTRAR=0x90F79bf6EB2c4f870365E785982E1f101E93b906 # anvil 3
 export PAUSER=0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65              # anvil 4
 export ASSET_MANAGER=0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc       # anvil 5
+export CLASS_MANAGER=0x976EA74026E726554dB657fA54763abd0C3a0aa9       # anvil 6
+export STOCK_AUDITOR=0x14dC79964da2C08b23698B3D3cc7Ca32193d9955       # anvil 7
+export RETIREMENT_OPERATOR=0x23618e81E3f5cdF7f54C3d65f7FBc0aBf5B21E8f # anvil 8
+export FEE_OPERATOR=0xa0Ee7A142d267C1f36714E4a8F75612F20a79720        # anvil 9
 
 forge script script/Deploy.s.sol --rpc-url "$RPC" --broadcast --private-key "$DEPLOYER_KEY"
 node ../packages/shared/scripts/generate.mjs

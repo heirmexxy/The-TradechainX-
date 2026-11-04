@@ -8,6 +8,7 @@ import {WarehouseRegistry} from "../src/WarehouseRegistry.sol";
 import {WarehouseReceipt} from "../src/WarehouseReceipt.sol";
 import {LPOToken} from "../src/LPOToken.sol";
 import {CarbonCredits} from "../src/CarbonCredits.sol";
+import {CommodityUnits} from "../src/CommodityUnits.sol";
 import {Marketplace} from "../src/Marketplace.sol";
 import {XOwnFactory} from "../src/xown/XOwnFactory.sol";
 import {MockUSDC} from "../src/mocks/MockUSDC.sol";
@@ -22,6 +23,7 @@ import {MockUSDC} from "../src/mocks/MockUSDC.sol";
 ///   FEE_COLLECTOR      Where marketplace fees go (default: SUPER_ADMIN).
 ///   FEE_BPS            Marketplace fee in basis points (default 100 = 1%, max 500).
 ///   KYC_REVIEWER, LISTING_REVIEWER, WAREHOUSE_REGISTRAR, PAUSER, ASSET_MANAGER
+///   CLASS_MANAGER, STOCK_AUDITOR, RETIREMENT_OPERATOR, FEE_OPERATOR   (Commodity Units roles)
 ///                      Addresses to receive each role (skipped if unset).
 ///
 /// Writes deployments/<chainId>.json with every address and the deployment block.
@@ -33,6 +35,7 @@ contract Deploy is Script {
         address warehouseReceipt;
         address lpoToken;
         address carbonCredits;
+        address commodityUnits;
         address marketplace;
         address xownFactory;
         address xownEquipment;
@@ -72,6 +75,7 @@ contract Deploy is Script {
         d.warehouseReceipt = address(new WarehouseReceipt(deployer, delay, ids, whs));
         d.lpoToken = address(new LPOToken(deployer, delay, ids, IERC20(d.usdc)));
         d.carbonCredits = address(new CarbonCredits(deployer, delay, ids));
+        d.commodityUnits = address(new CommodityUnits(deployer, delay, ids, whs));
         d.marketplace = address(
             new Marketplace(
                 deployer,
@@ -93,6 +97,7 @@ contract Deploy is Script {
         mkt.setAssetKind(d.warehouseReceipt, Marketplace.AssetKind.ERC721);
         mkt.setAssetKind(d.lpoToken, Marketplace.AssetKind.ERC721);
         mkt.setAssetKind(d.carbonCredits, Marketplace.AssetKind.ERC1155);
+        mkt.setAssetKind(d.commodityUnits, Marketplace.AssetKind.ERC1155);
 
         bytes32 reviewerRole = keccak256("LISTING_REVIEWER_ROLE");
         bytes32 pauserRole = keccak256("PAUSER_ROLE");
@@ -103,17 +108,23 @@ contract Deploy is Script {
 
         address reviewer = vm.envOr("LISTING_REVIEWER", address(0));
         address pauser = vm.envOr("PAUSER", address(0));
-        address[4] memory reviewed = [d.warehouseReceipt, d.lpoToken, d.carbonCredits, d.xownFactory];
+        address[5] memory reviewed = [d.warehouseReceipt, d.lpoToken, d.carbonCredits, d.commodityUnits, d.xownFactory];
         for (uint256 i = 0; i < reviewed.length; i++) {
             _grant(reviewed[i], reviewerRole, reviewer);
             _grant(reviewed[i], pauserRole, pauser);
         }
+
+        // Commodity Units roles (PRD v3 §3.3). Each is a separate person; unset roles are skipped.
+        _grant(d.commodityUnits, keccak256("CLASS_MANAGER_ROLE"), vm.envOr("CLASS_MANAGER", address(0)));
+        _grant(d.commodityUnits, keccak256("STOCK_AUDITOR_ROLE"), vm.envOr("STOCK_AUDITOR", address(0)));
+        _grant(d.commodityUnits, keccak256("RETIREMENT_OPERATOR_ROLE"), vm.envOr("RETIREMENT_OPERATOR", address(0)));
+        _grant(d.commodityUnits, keccak256("FEE_OPERATOR_ROLE"), vm.envOr("FEE_OPERATOR", address(0)));
         _grant(d.marketplace, pauserRole, pauser);
     }
 
     function _handOver(Deployed memory d, address superAdmin) private {
-        address[7] memory all = [
-            d.identityRegistry, d.warehouseRegistry, d.warehouseReceipt, d.lpoToken, d.carbonCredits, d.marketplace, d.xownFactory
+        address[8] memory all = [
+            d.identityRegistry, d.warehouseRegistry, d.warehouseReceipt, d.lpoToken, d.carbonCredits, d.commodityUnits, d.marketplace, d.xownFactory
         ];
         for (uint256 i = 0; i < all.length; i++) {
             AdminRules(all[i]).beginDefaultAdminTransfer(superAdmin);
@@ -134,6 +145,7 @@ contract Deploy is Script {
         vm.serializeAddress(k, "warehouseReceipt", d.warehouseReceipt);
         vm.serializeAddress(k, "lpoToken", d.lpoToken);
         vm.serializeAddress(k, "carbonCredits", d.carbonCredits);
+        vm.serializeAddress(k, "commodityUnits", d.commodityUnits);
         vm.serializeAddress(k, "marketplace", d.marketplace);
         vm.serializeAddress(k, "xownEquipment", d.xownEquipment);
         string memory json = vm.serializeAddress(k, "xownFactory", d.xownFactory);

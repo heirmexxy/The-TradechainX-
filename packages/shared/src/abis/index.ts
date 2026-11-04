@@ -5,6 +5,7 @@ export { warehouseRegistryAbi } from "./warehouseRegistry.ts";
 export { warehouseReceiptAbi } from "./warehouseReceipt.ts";
 export { lpoTokenAbi } from "./lpoToken.ts";
 export { carbonCreditsAbi } from "./carbonCredits.ts";
+export { commodityUnitsAbi } from "./commodityUnits.ts";
 export { marketplaceAbi } from "./marketplace.ts";
 export { xownFactoryAbi } from "./xownFactory.ts";
 export { xownVaultAbi } from "./xownVault.ts";

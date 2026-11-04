@@ -19,6 +19,7 @@ const CONTRACTS = [
   ["WarehouseReceipt.sol", "WarehouseReceipt", "warehouseReceiptAbi"],
   ["LPOToken.sol", "LPOToken", "lpoTokenAbi"],
   ["CarbonCredits.sol", "CarbonCredits", "carbonCreditsAbi"],
+  ["CommodityUnits.sol", "CommodityUnits", "commodityUnitsAbi"],
   ["Marketplace.sol", "Marketplace", "marketplaceAbi"],
   ["XOwnFactory.sol", "XOwnFactory", "xownFactoryAbi"],
   ["XOwnVault.sol", "XOwnVault", "xownVaultAbi"],
@@ -69,6 +70,7 @@ export type Deployment = {
   warehouseReceipt: \`0x\${string}\`;
   lpoToken: \`0x\${string}\`;
   carbonCredits: \`0x\${string}\`;
+  commodityUnits: \`0x\${string}\`;
   marketplace: \`0x\${string}\`;
   xownFactory: \`0x\${string}\`;
   xownEquipment: \`0x\${string}\`;
