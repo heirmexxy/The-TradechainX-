@@ -58,6 +58,9 @@ const schema = z.object({
 
   // Partner API. The pepper derives webhook signing secrets (never stored); 32+ random chars.
   PARTNER_API_ENABLED: bool,
+  // Distribution API (fintech naira orders). Sandbox wallets are fake addresses for integration testing only.
+  DISTRIBUTION_API_ENABLED: bool,
+  DISTRIBUTION_SANDBOX_WALLETS: bool,
   WEBHOOK_SECRET_PEPPER: z.string().optional(),
   // Public site origin used in widget links (defaults to WEB_ORIGIN).
   PUBLIC_WEB_URL: z.string().url().optional().or(z.literal("")),
@@ -111,6 +114,9 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
   if (env.NODE_ENV === "production") {
     if (env.WALLET_PROVIDER === "dev") throw new Error("WALLET_PROVIDER=dev isn't allowed in production");
     if (!env.WALLET_TOKEN_PRIVATE_KEY) throw new Error("WALLET_TOKEN_PRIVATE_KEY is required in production");
+  }
+  if (env.NODE_ENV === "production" && env.DISTRIBUTION_SANDBOX_WALLETS) {
+    throw new Error("DISTRIBUTION_SANDBOX_WALLETS must be false in production (it creates addresses nobody controls)");
   }
   if (env.PARTNER_API_ENABLED && (!env.WEBHOOK_SECRET_PEPPER || env.WEBHOOK_SECRET_PEPPER.length < 32)) {
     throw new Error("PARTNER_API_ENABLED needs WEBHOOK_SECRET_PEPPER (32+ random characters)");

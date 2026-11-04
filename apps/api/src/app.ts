@@ -20,6 +20,7 @@ import { walletRoutes } from "./routes/wallet.ts";
 import { rampRoutes } from "./routes/ramp.ts";
 import { healthRoutes } from "./routes/health.ts";
 import { partnerRoutes } from "./partner/routes.ts";
+import { distributionRoutes } from "./distribution/routes.ts";
 import { partnerAdminRoutes } from "./routes/partners.ts";
 import { embedRoutes } from "./routes/embed.ts";
 import { devRoutes } from "./dev/routes.ts";
@@ -43,7 +44,7 @@ export async function buildApp() {
     if (url.startsWith("/embed/") || url.startsWith("/.well-known/")) {
       return cb(null, { origin: "*", credentials: false, methods: ["GET"] });
     }
-    if (url.startsWith("/partner/") || url.startsWith("/ramp/webhook")) return cb(null, { origin: false });
+    if (url.startsWith("/partner/") || url.startsWith("/distribution/") || url.startsWith("/ramp/webhook")) return cb(null, { origin: false });
     cb(null, {
       origin: env.WEB_ORIGIN,
       credentials: true,
@@ -101,6 +102,7 @@ export async function buildApp() {
   await app.register(embedRoutes);
   await app.register(partnerAdminRoutes);
   if (env.PARTNER_API_ENABLED) await app.register(partnerRoutes, { prefix: "/partner/v1" });
+  if (env.DISTRIBUTION_API_ENABLED) await app.register(distributionRoutes, { prefix: "/distribution/v1" });
   if (env.DEV_TOOLS) await app.register(devRoutes);
 
   return app;
