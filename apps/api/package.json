@@ -11,6 +11,7 @@
     "db:seed": "tsx src/dev/seed.ts",
     "typecheck": "tsc --noEmit -p .",
     "test": "vitest run",
+    "test:distribution": "node --experimental-transform-types --test test/distribution/*.nodetest.ts",
     "start:indexer": "node --import tsx src/indexer/run.ts",
     "admin:grant": "node --import tsx src/scripts/grant-admin.ts"
   },
