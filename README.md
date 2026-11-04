@@ -106,6 +106,8 @@ pnpm test:sdk                # partner SDK incl. webhook signature verification
 pnpm --filter @tradechainx/api test   # hash functions pinned to values from the deployed contracts
 cd contracts && ./smoke-local.sh      # full journey against a deploy-local.sh deployment, via cast
 PGDATABASE=tcx apps/api/test/schema-distribution.sh   # money-safety constraints, on a Postgres with migrations applied
+PGDATABASE=tcx apps/api/test/distribution/sql-prepare.sh   # every Distribution SQL statement against the schema
+pnpm --filter @tradechainx/api test:distribution          # Distribution service rules (Node built-in runner)
 ```
 
 CI (`.github/workflows/ci.yml`) runs all of the above plus Slither, type-checking and the web build.
@@ -120,7 +122,9 @@ Added in November 2026. Verified by running in a build environment with Foundry,
 | `CommodityUnits` contract: pooled 1 kg units, three-person issuance gate, backing invariant, automatic halt on shortfall or lost monitoring, two-person processor sale, in-kind holding fees, resale via the existing marketplace | **Built.** 58 tests incl. a 256-run fuzz of the backing invariant. Deploys with `deploy-local.sh`; the 16-check smoke journey still passes. Not audited. Runtime size 22.6 KB of the 24.6 KB limit |
 | Shared rules: units, quotes, fees, revenue share, net settlement, prefund, asset-module registry, eligibility | **Built.** 14 new tests, pinned to the same numbers as the contract tests |
 | Database: classes, lots, prices, distributors, customers, orders, append-only balanced ledger, settlements | **Built.** `migrations/0005_distribution.sql` applied to Postgres 16; 29 constraint checks pass (`apps/api/test/schema-distribution.sh`, also a CI job) |
-| Distribution API routes, indexer handlers, price service, market-making desk, naira settlement, custodian wallets, naira ramp, SDK additions, white-label screens, admin screens | **Not built.** See the status table in [docs/DISTRIBUTION_API.md](docs/DISTRIBUTION_API.md) |
+| Distribution service core: customers, quotes, idempotent orders, buyback limits and circuit breaker, prefund gate, balanced ledger journals, settlement | **Built.** 30 tests incl. deliberately broken rules being caught; strict type-check passes. Postgres repository: 28 statements prepared against the schema and the money queries run with real data |
+| Distribution API routes (`/distribution/v1`: classes, customers, quotes, orders) behind `DISTRIBUTION_API_ENABLED` | **Written, not run** (need `pnpm install`) |
+| Chain worker that delivers units, indexer handlers, price service, market-making desk, naira settlement jobs, custodian wallets, naira ramp, SDK additions, white-label screens, admin screens | **Not built.** See the status table in [docs/DISTRIBUTION_API.md](docs/DISTRIBUTION_API.md) |
 | Pledge/lien support for units (Carrot Credit collateral) | **Not built** |
 
 Not run: Slither (CI runs it), and `pnpm install` / typecheck / app tests (npm registry blocked in the

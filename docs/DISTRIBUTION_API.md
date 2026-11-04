@@ -1,7 +1,7 @@
 # Distribution API v1 — design
 
-Status: **design and data model only.** The routes, settlement service and custodian integration are not
-built yet (see [Status](#status)). This document is the contract the build must meet.
+Status: **core rules, data model and the order-flow routes are built; custodian, price service, market-making
+and the remaining endpoints are not** (see [Status](#status)). This document is the contract the build must meet.
 Product context: [PRD v3](PRD_v3.md) §5, §8 · Schema: [`apps/api/migrations/0005_distribution.sql`](../apps/api/migrations/0005_distribution.sql)
 Shared rules: [`packages/shared/src/domain`](../packages/shared/src/domain) (`commodity.ts`, `assetModules.ts`, `naira.ts`)
 
@@ -22,7 +22,8 @@ touch a chain: they send naira-denominated orders for their own customers.
 ## Auth, limits, errors
 
 Same key model as the Partner API: `Authorization: Bearer tcx_live_<prefix>_<secret>`, scoped keys,
-per-minute rate limit and daily quota, server-to-server only. Scopes: `read`, `customers`, `trade`.
+per-minute rate limit and daily quota, server-to-server only. Scopes: `read` for GETs, `trade` for everything that writes
+(including creating customers). Enable with `DISTRIBUTION_API_ENABLED=true`; the routes live under `/distribution/v1`.
 Errors are `{ "error": "<code>", "message": "..." }`. Extra codes: `quote_expired`, `class_halted`,
 `buyback_unavailable`, `daily_limit_reached`, `prefund_insufficient`, `kyc_not_verified`,
 `asset_not_enabled_for_distributor`, `tier_not_eligible_by_default`, `disclosure_not_accepted:<id>`.
@@ -74,12 +75,17 @@ unbalanced journals).
 | Rules: unit math, quotes, fees, revenue share, net settlement, prefund, eligibility | **Built and tested** (`packages/shared`, 24 tests) |
 | Data model: classes, lots, prices, market parameters, distributors, grants, customers, quotes, orders, ledger, settlements, fees | **Built, applied to Postgres 16 and constraint-tested** (29 checks) |
 | `CommodityUnits` contract | **Built and tested** (58 tests); not yet audited |
-| API routes and auth for the endpoints above | Not built |
+| Service core (`src/distribution/service.ts`): customers, quotes, idempotent orders, buyback limits and circuit breaker, prefund gate, balanced ledger journals, settlement | **Built and tested** (30 tests, in-memory repo; three deliberately broken rules were each caught). Strict type-check passes |
+| Postgres repository and SQL | **Built.** All 28 statements prepared against the schema; the exposure, daily-buyback and journal statements executed with real data |
+| Routes: `GET /classes`, `POST /customers`, `GET /customers/{id}`, `POST /quotes`, `POST /orders` (Idempotency-Key), `GET /orders/{id}`, `POST /orders/{id}/confirm-funds`, `DELETE /orders/{id}` | **Written, not run.** Need `pnpm install` (Fastify, zod, viem); syntax-checked only |
+| Wiring: chain-backed holdings, sandbox wallets (refused in production) | **Written, not run** |
+| Endpoints not yet written: other asset types, holdings, statements, pledges, settlements and revenue-share statements, webhooks | Not built |
+| Settlement close/pay | Service methods built and tested; no admin route or scheduled job yet |
+| Chain worker that moves units and calls `markDelivered` | Not built |
 | Indexer handlers for the new contract's events | Not built |
-| Reference price service and committee approval flow | Not built |
-| Market-making desk, reserve, buyback limits, circuit breaker | Not built |
-| Naira settlement service and reconciliation | Not built |
-| Custodian-held wallet provisioning | Not built (needs the custodian partner) |
+| Reference price service and committee approval flow | Not built (prices are read from `reference_prices`) |
+| Market-making desk, reserve, buyback limits as a managed policy | Limits and breaker are enforced when quoting; the desk and reserve are not built |
+| Custodian-held wallet provisioning | Not built (needs the custodian partner); unconfigured, wallet creation returns `custodian_not_configured` |
 | Naira ramp for direct users | Not built (needs a Nigerian ramp partner) |
 | SDK additions and white-label screens | Not built |
 | Admin console screens (classes, lots, prices, sales, distributors) | Not built |

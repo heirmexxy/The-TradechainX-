@@ -67,6 +67,7 @@ jobs:
       - run: pnpm test:sdk
       - run: pnpm typecheck
       - run: pnpm --filter @tradechainx/api test
+      - run: pnpm --filter @tradechainx/api test:distribution
       - name: Build web
         run: pnpm --filter @tradechainx/web build
         env:
@@ -98,10 +99,15 @@ jobs:
       PGDATABASE: tcx
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
       - name: Apply migrations in order
         run: for f in apps/api/migrations/*.sql; do echo "== $f"; psql -v ON_ERROR_STOP=1 -q -f "$f"; done
       - name: Check distribution schema constraints
         run: apps/api/test/schema-distribution.sh
+      - name: Check every Distribution SQL statement against the schema
+        run: apps/api/test/distribution/sql-prepare.sh
 
   e2e-chain:
     runs-on: ubuntu-latest
