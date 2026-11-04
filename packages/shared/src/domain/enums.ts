@@ -79,3 +79,25 @@ export const ASSET_TYPE_LABEL: Record<AssetType, string> = {
   carbon: "Carbon credits",
   xown: "XOwn equipment share",
 };
+
+/** CommodityUnits.LotStatus */
+export const LotStatus = {
+  None: 0,
+  Pending: 1,
+  Attested: 2,
+  Live: 3,
+  Rejected: 4,
+  Withdrawn: 5,
+  Depleted: 6,
+} as const;
+export type LotStatus = (typeof LotStatus)[keyof typeof LotStatus];
+
+/** CommodityUnits.SaleStatus */
+export const SaleStatus = {
+  None: 0,
+  Proposed: 1,
+  Approved: 2,
+  Completed: 3,
+  Cancelled: 4,
+} as const;
+export type SaleStatus = (typeof SaleStatus)[keyof typeof SaleStatus];
